@@ -152,5 +152,6 @@ LOGOUT_REDIRECT_URL = 'login'
 CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8001',
     'http://127.0.0.1:58769',
+    'http://127.0.0.1:62374',
     'http://localhost:8001',
 ]

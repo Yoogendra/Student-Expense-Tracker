@@ -103,26 +103,102 @@
             text-decoration: underline;
         }
         
-        .messages {
-            margin-bottom: 20px;
+        /* Pop-up message styles */
+        .popup-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
         }
         
-        .message {
-            padding: 12px;
-            border-radius: 8px;
+        .popup-message {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
             margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid;
         }
         
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .popup-message.success {
+            border-left-color: #10b981;
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
         }
         
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .popup-message.error {
+            border-left-color: #ef4444;
+            background: linear-gradient(135deg, #fef2f2, #fee2e2);
+        }
+        
+        .popup-message.info {
+            border-left-color: #3b82f6;
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+        }
+        
+        .popup-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            flex-shrink: 0;
+        }
+        
+        .popup-message.success .popup-icon {
+            background: #10b981;
+        }
+        
+        .popup-message.error .popup-icon {
+            background: #ef4444;
+        }
+        
+        .popup-message.info .popup-icon {
+            background: #3b82f6;
+        }
+        
+        .popup-content {
+            flex: 1;
+        }
+        
+        .popup-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+            color: #1f2937;
+        }
+        
+        .popup-text {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
         }
     </style>
 </head>
@@ -133,13 +209,10 @@
             <p>Login to track your expenses</p>
         </div>
 
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="message {{ message.tags }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
+        <!-- Pop-up container for messages -->
+        <div class="popup-container" id="popup-container" 
+             data-messages="{% if messages %}[{% for message in messages %}{'message': '{{ message|escapejs }}', 'tags': '{{ message.tags|escapejs }}'}{% if not forloop.last %},{% endif %}{% endfor %}]{% else %}[]{% endif %}">
+        </div>
 
         <form method="post">
             {% csrf_token %}
@@ -160,5 +233,62 @@
             Don't have an account? <a href="{% url 'register' %}">Register here</a>
         </div>
     </div>
+
+    <script>
+        // Function to show pop-up messages
+        function showPopup(title, text, type = 'info') {
+            const container = document.getElementById('popup-container');
+            
+            const popup = document.createElement('div');
+            popup.className = `popup-message ${type}`;
+            
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'i';
+            
+            popup.innerHTML = `
+                <div class="popup-icon">${icon}</div>
+                <div class="popup-content">
+                    <div class="popup-title">${title}</div>
+                    <div class="popup-text">${text}</div>
+                </div>
+            `;
+            
+            container.appendChild(popup);
+            
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+                popup.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    popup.remove();
+                }, 300);
+            }, 4000);
+        }
+
+        // Check for Django messages and show as pop-ups
+        const container = document.getElementById('popup-container');
+        const messagesData = container.getAttribute('data-messages');
+        const messages = messagesData ? JSON.parse(messagesData) : [];
+        
+        if (messages && messages.length > 0) {
+            messages.forEach(function(message) {
+                const text = message.message;
+                const tags = message.tags;
+                
+                if (tags.includes('logged in') || tags.includes('success')) {
+                    showPopup('Login Successful', text, 'success');
+                } else if (tags.includes('logged out')) {
+                    showPopup('Logged Out', text, 'info');
+                } else if (tags.includes('error')) {
+                    showPopup('Error', text, 'error');
+                } else {
+                    showPopup('Notification', text, 'info');
+                }
+            });
+        }
+
+        // Initialize pop-ups when page loads
+        window.addEventListener('load', function() {
+            // Messages are already handled above, no need for additional cleanup
+        });
+    </script>
 </body>
 </html>

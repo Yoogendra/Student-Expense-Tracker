@@ -1,16 +1,107 @@
+from django.shortcuts import render
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 from django.utils import timezone
-from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from datetime import datetime, timedelta
 
 from .models import Expense, Category
 from .serializers import ExpenseSerializer, CategorySerializer
+
+@login_required
+def expense_tracker_view(request):
+    return render(request, 'expenses/index.html', {'user': request.user})
+
+@login_required
+def profile_view(request):
+    return render(request, 'expenses/profile.html', {'user': request.user})
+
+@login_required
+def settings_view(request):
+    return render(request, 'expenses/settings.html', {'user': request.user})
+
+@login_required
+def expense_history(request):
+    """View for expense history with pagination and search"""
+    # Get all expenses for the logged-in user, ordered by date (newest first)
+    expenses = Expense.objects.filter(user=request.user).order_by('-date', '-created_at')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        expenses = expenses.filter(
+            Q(title__icontains=search_query) | 
+            Q(category__name__icontains=search_query)
+        )
+    
+    # Category filter
+    category_filter = request.GET.get('category', '')
+    if category_filter:
+        expenses = expenses.filter(category_id=category_filter)
+    
+    # Expense type filter
+    expense_type_filter = request.GET.get('expense_type', '')
+    if expense_type_filter:
+        expenses = expenses.filter(expense_type=expense_type_filter)
+    
+    # Date range filter
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        expenses = expenses.filter(date__gte=date_from)
+    if date_to:
+        expenses = expenses.filter(date__lte=date_to)
+    
+    # Amount range filter
+    amount_min = request.GET.get('amount_min', '')
+    amount_max = request.GET.get('amount_max', '')
+    if amount_min:
+        expenses = expenses.filter(amount__gte=amount_min)
+    if amount_max:
+        expenses = expenses.filter(amount__lte=amount_max)
+    
+    # Sorting
+    sort_by = request.GET.get('sort', '-date')
+    if sort_by:
+        expenses = expenses.order_by(sort_by)
+    
+    # Pagination (10 items per page)
+    paginator = Paginator(expenses, 10)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    # Get all categories for filter dropdown
+    categories = Category.objects.all()
+    
+    # Build filter parameters for pagination links
+    filter_params = request.GET.copy()
+    if 'page' in filter_params:
+        del filter_params['page']
+    
+    context = {
+        'user': request.user,
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'total_expenses': paginator.count,
+        'categories': categories,
+        'filter_params': filter_params.urlencode(),
+        'current_filters': {
+            'category': category_filter,
+            'expense_type': expense_type_filter,
+            'date_from': date_from,
+            'date_to': date_to,
+            'amount_min': amount_min,
+            'amount_max': amount_max,
+            'sort': sort_by,
+        }
+    }
+    
+    return render(request, 'expenses/history.html', context)
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -59,10 +150,48 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def recent(self, request):
-        recent_expenses = self.get_queryset()[:10]
+        recent_expenses = self.get_queryset()[:5]  # Limit to 5 most recent
         serializer = self.get_serializer(recent_expenses, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def chart_data(self, request):
+        """Get last 7 days spending data for chart"""
+        from datetime import date, timedelta
+        from django.db.models import Sum
+        from collections import defaultdict
+        
+        # Get last 7 days
+        today = date.today()
+        dates = []
+        for i in range(6, -1, -1):
+            dates.append(today - timedelta(days=i))
+        
+        # Get expense data for each day
+        daily_spending = []
+        labels = []
+        
+        for day_date in dates:
+            day_total = self.get_queryset().filter(date=day_date).aggregate(
+                total=Sum('amount')
+            )['total'] or 0
+            
+            labels.append(day_date.strftime('%a'))  # Day name like Mon, Tue, etc.
+            daily_spending.append(float(day_total))
+        
+        return Response({
+            'labels': labels,
+            'data': daily_spending
+        })
 
 @login_required
 def expense_tracker_view(request):
     return render(request, 'expenses/index.html', {'user': request.user})
+
+@login_required
+def profile_view(request):
+    return render(request, 'expenses/profile.html', {'user': request.user})
+
+@login_required
+def settings_view(request):
+    return render(request, 'expenses/settings.html', {'user': request.user})
