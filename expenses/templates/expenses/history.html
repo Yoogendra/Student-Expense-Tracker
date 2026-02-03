@@ -352,6 +352,131 @@
             white-space: nowrap;
         }
 
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--background);
+            color: var(--text-primary);
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .filter-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-option input[type="radio"],
+        .filter-option input[type="checkbox"] {
+            accent-color: var(--emerald);
+        }
+
+        .filter-option label {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .date-range {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            padding: 0.625rem 0.875rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            background: var(--surface);
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--emerald);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
         /* Hide the advanced filters button */
         .filter-header .btn-secondary {
             display: none;
@@ -544,6 +669,28 @@
             cursor: not-allowed;
         }
 
+        .btn {
+            padding: 0.875rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-secondary {
+            background: var(--secondary-navy);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary-navy);
+        }
+
         /* Empty State */
         .empty-state {
             text-align: center;
@@ -591,6 +738,148 @@
     </style>
 </head>
 <body>
+    <script>
+        console.log('Script loaded!');
+        function testModal() {
+            document.getElementById('simple-modal').style.display = 'block';
+        }
+        
+        function applySimpleFilters() {
+            const category = document.getElementById('filter-category').value;
+            const sort = document.getElementById('filter-sort').value;
+            const dateRange = document.getElementById('filter-date').value;
+            
+            // Build query parameters
+            const params = new URLSearchParams();
+            
+            if (category) {
+                params.append('category', category);
+            }
+            
+            if (sort) {
+                params.append('ordering', sort);
+            }
+            
+            if (dateRange) {
+                const daysAgo = new Date();
+                daysAgo.setDate(daysAgo.getDate() - parseInt(dateRange));
+                params.append('date__gte', daysAgo.toISOString().split('T')[0]);
+            }
+            
+            // Redirect with filters
+            const url = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+            window.location.href = url;
+        }
+
+        // Smart Filter Component JavaScript
+        document.addEventListener('DOMContentLoaded', function() {
+            const trigger = document.getElementById('smart-filter-trigger');
+            const dropdown = document.getElementById('smart-filter-dropdown');
+            const applyButton = document.getElementById('apply-filters');
+            const resetButton = document.getElementById('reset-filters');
+
+            console.log('Smart Filter elements found:', { trigger, dropdown, applyButton, resetButton });
+
+            // Toggle dropdown
+            trigger.addEventListener('click', function(e) {
+                e.stopPropagation();
+                console.log('Filter button clicked');
+                
+                if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+                    dropdown.style.display = 'block';
+                    console.log('Dropdown shown');
+                } else {
+                    dropdown.style.display = 'none';
+                    console.log('Dropdown hidden');
+                }
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!dropdown.contains(e.target) && e.target !== trigger) {
+                    dropdown.style.display = 'none';
+                }
+            });
+
+            // Apply filters
+            applyButton.addEventListener('click', function() {
+                console.log('Apply filters clicked');
+                const params = new URLSearchParams();
+                
+                // Get sort by - use 'sort' parameter as expected by backend
+                const sortBy = document.querySelector('input[name="sort_by"]:checked');
+                if (sortBy) {
+                    params.append('sort', sortBy.value);
+                    console.log('Sort by:', sortBy.value);
+                }
+                
+                // Get categories - backend now supports multiple categories
+                const categories = document.querySelectorAll('input[name="category"]:checked');
+                const categoryValues = Array.from(categories).map(cb => cb.value);
+                if (categoryValues.length > 0) {
+                    params.append('category', categoryValues.join(','));
+                    console.log('Categories:', categoryValues);
+                }
+                
+                // Get price range - use correct parameter names
+                const minAmount = document.querySelector('input[name="min_amount"]').value;
+                const maxAmount = document.querySelector('input[name="max_amount"]').value;
+                if (minAmount) {
+                    params.append('amount_min', minAmount);
+                    console.log('Min amount:', minAmount);
+                }
+                if (maxAmount) {
+                    params.append('amount_max', maxAmount);
+                    console.log('Max amount:', maxAmount);
+                }
+                
+                // Get date range - use correct parameter names
+                const startDate = document.querySelector('input[name="start_date"]').value;
+                const endDate = document.querySelector('input[name="end_date"]').value;
+                if (startDate) {
+                    params.append('date_from', startDate);
+                    console.log('Start date:', startDate);
+                }
+                if (endDate) {
+                    params.append('date_to', endDate);
+                    console.log('End date:', endDate);
+                }
+                
+                console.log('Final filter params:', params.toString());
+                
+                // Redirect with filters
+                const url = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+                console.log('Redirecting to:', url);
+                window.location.href = url;
+            });
+
+            // Reset filters
+            resetButton.addEventListener('click', function() {
+                console.log('Reset filters clicked');
+                // Reset sort by
+                document.querySelector('input[name="sort_by"][value="-date"]').checked = true;
+                
+                // Reset categories
+                document.querySelectorAll('input[name="category"]').forEach(cb => cb.checked = false);
+                
+                // Reset price range
+                document.querySelector('input[name="min_amount"]').value = '';
+                document.querySelector('input[name="max_amount"]').value = '';
+                
+                // Reset date range
+                document.querySelector('input[name="start_date"]').value = '';
+                document.querySelector('input[name="end_date"]').value = '';
+                
+                // Hide dropdown
+                dropdown.style.display = 'none';
+                
+                // Redirect to clean URL
+                console.log('Redirecting to clean URL');
+                window.location.href = window.location.pathname;
+            });
+        });
+    </script>
+    
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
@@ -677,92 +966,90 @@
 
             <!-- Content Area -->
             <div class="content">
-                <!-- Filter Section -->
-                <div class="filter-section">
-                    <div class="filter-header" onclick="toggleFilters()">
-                        <h3 class="filter-title">
-                            <i data-lucide="filter" style="width: 20px; height: 20px; margin-right: 0.5rem;"></i>
-                            Filters
-                        </h3>
-                    </div>
-                    
-                    <form method="get" class="filter-form" id="filter-form">
-                        <!-- Hidden search input to preserve search -->
-                        <input type="hidden" name="search" value="{{ search_query|default:'' }}">
-                        
-                        <div class="filter-grid" id="filter-grid" style="display: none;">
-                            <!-- Category Filter -->
-                            <div class="filter-group">
-                                <label class="filter-label">Category</label>
-                                <select name="category" class="filter-select">
-                                    <option value="">All Categories</option>
+                <!-- Smart Filter Component -->
+                <div class="relative mb-6">
+                    <!-- Trigger Button -->
+                    <button id="smart-filter-trigger" class="btn btn-secondary inline-flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                        </svg>
+                        <span>Filters</span>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div id="smart-filter-dropdown" class="absolute top-full mt-2 right-0 z-50 w-80 bg-white rounded-lg shadow-xl" style="display: none;">
+                        <div class="p-4">
+                            <!-- Sort By Section -->
+                            <div class="mb-4">
+                                <h4 class="text-sm font-medium text-gray-900 mb-2">Sort By</h4>
+                                <div class="space-y-2">
+                                    <label class="flex items-center">
+                                        <input type="radio" name="sort_by" value="-amount" 
+                                               class="mr-2" {% if current_sort == '-amount' %}checked{% endif %}>
+                                        <span class="text-sm">Price: High to Low</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="radio" name="sort_by" value="amount" 
+                                               class="mr-2" {% if current_sort == 'amount' %}checked{% endif %}>
+                                        <span class="text-sm">Price: Low to High</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="radio" name="sort_by" value="-date" 
+                                               class="mr-2" {% if current_sort == '-date' %}checked{% endif %}>
+                                        <span class="text-sm">Newest First</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Category Section -->
+                            <div class="mb-4">
+                                <h4 class="text-sm font-medium text-gray-900 mb-2">Category</h4>
+                                <div class="space-y-2 max-h-32 overflow-y-auto">
                                     {% for category in categories %}
-                                        <option value="{{ category.id }}" {% if current_filters.category == category.id|stringformat:"s" %}selected{% endif %}>
-                                            {{ category.name }}
-                                        </option>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" name="category" value="{{ category.id }}" 
+                                               class="mr-2" {% if category.id|stringformat:"s" in current_categories %}checked{% endif %}>
+                                        <span class="text-sm">{{ category.name }}</span>
+                                    </label>
                                     {% endfor %}
-                                </select>
+                                </div>
                             </div>
-                            
-                            <!-- Expense Type Filter -->
-                            <div class="filter-group">
-                                <label class="filter-label">Type</label>
-                                <select name="expense_type" class="filter-select">
-                                    <option value="">All Types</option>
-                                    <option value="expense" {% if current_filters.expense_type == 'expense' %}selected{% endif %}>Expense</option>
-                                    <option value="income" {% if current_filters.expense_type == 'income' %}selected{% endif %}>Income</option>
-                                </select>
+
+                            <!-- Price Range Section -->
+                            <div class="mb-4">
+                                <h4 class="text-sm font-medium text-gray-900 mb-2">Price Range (₹)</h4>
+                                <div class="flex gap-2">
+                                    <input type="number" placeholder="Min" name="min_amount" 
+                                           value="{{ current_amount_min }}" 
+                                           class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <input type="number" placeholder="Max" name="max_amount" 
+                                           value="{{ current_amount_max }}" 
+                                           class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
                             </div>
-                            
-                            <!-- Date Range Filter -->
-                            <div class="filter-group">
-                                <label class="filter-label">Date From</label>
-                                <input type="date" name="date_from" class="filter-input" value="{{ current_filters.date_from }}">
+
+                            <!-- Time Period Section -->
+                            <div class="mb-4">
+                                <h4 class="text-sm font-medium text-gray-900 mb-2">Time Period</h4>
+                                <div class="flex gap-2">
+                                    <input type="date" name="start_date" 
+                                           value="{{ current_date_from }}" 
+                                           class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <input type="date" name="end_date" 
+                                           value="{{ current_date_to }}" 
+                                           class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
                             </div>
-                            
-                            <div class="filter-group">
-                                <label class="filter-label">Date To</label>
-                                <input type="date" name="date_to" class="filter-input" value="{{ current_filters.date_to }}">
-                            </div>
-                            
-                            <!-- Amount Range Filter -->
-                            <div class="filter-group">
-                                <label class="filter-label">Min Amount</label>
-                                <input type="number" name="amount_min" class="filter-input" placeholder="0" value="{{ current_filters.amount_min }}" step="0.01">
-                            </div>
-                            
-                            <div class="filter-group">
-                                <label class="filter-label">Max Amount</label>
-                                <input type="number" name="amount_max" class="filter-input" placeholder="10000" value="{{ current_filters.amount_max }}" step="0.01">
-                            </div>
-                            
-                            <!-- Sort Filter -->
-                            <div class="filter-group">
-                                <label class="filter-label">Sort By</label>
-                                <select name="sort" class="filter-select">
-                                    <option value="-date" {% if current_filters.sort == '-date' %}selected{% endif %}>Date (Newest First)</option>
-                                    <option value="date" {% if current_filters.sort == 'date' %}selected{% endif %}>Date (Oldest First)</option>
-                                    <option value="-amount" {% if current_filters.sort == '-amount' %}selected{% endif %}>Amount (High to Low)</option>
-                                    <option value="amount" {% if current_filters.sort == 'amount' %}selected{% endif %}>Amount (Low to High)</option>
-                                    <option value="title" {% if current_filters.sort == 'title' %}selected{% endif %}>Title (A-Z)</option>
-                                    <option value="-title" {% if current_filters.sort == '-title' %}selected{% endif %}>Title (Z-A)</option>
-                                </select>
-                            </div>
-                            
-                            <!-- Filter Actions -->
-                            <div class="filter-group filter-actions">
-                                <button type="submit" class="btn btn-primary">
-                                    <i data-lucide="search" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
-                                    Apply Filters
-                                </button>
-                                <a href="{% url 'expense_history' %}" class="btn btn-secondary">
-                                    <i data-lucide="x" style="width: 16px; height: 16px; margin-right: 0.5rem;"></i>
-                                    Clear
-                                </a>
+
+                            <!-- Actions -->
+                            <div class="flex justify-between items-center pt-3 border-t border-gray-200">
+                                <button id="reset-filters" class="text-sm text-gray-600 hover:text-gray-800">Reset</button>
+                                <button id="apply-filters" class="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Apply Filters</button>
                             </div>
                         </div>
-                    </form>
+                    </div>
                 </div>
+
                 <div class="history-container">
                     {% if page_obj %}
                         <div class="table-container">
@@ -864,6 +1151,152 @@
         </main>
     </div>
 
+    <!-- Working Filter Modal -->
+    <div id="simple-modal" style="position: fixed; top: 50px; right: 50px; width: 350px; background: white; border: 2px solid #333; padding: 20px; z-index: 99999; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+        <h3 style="margin-top: 0;">Filter Expenses</h3>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category:</label>
+            <select id="filter-category" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <option value="">All Categories</option>
+                <option value="4">Education</option>
+                <option value="5">Entertainment</option>
+                <option value="6">Food & Dining</option>
+                <option value="7">Healthcare</option>
+                <option value="8">Housing</option>
+                <option value="10">Shopping</option>
+                <option value="11">Transportation</option>
+                <option value="12">Travel</option>
+                <option value="13">Utilities</option>
+            </select>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Sort by:</label>
+            <select id="filter-sort" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <option value="-date">Date (Newest First)</option>
+                <option value="date">Date (Oldest First)</option>
+                <option value="-amount">Amount (High to Low)</option>
+                <option value="amount">Amount (Low to High)</option>
+                <option value="title">Title (A-Z)</option>
+            </select>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Date Range:</label>
+            <select id="filter-date" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <option value="">All Time</option>
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+            </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button onclick="applySimpleFilters()" style="flex: 1; padding: 10px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer;">Apply Filters</button>
+            <button onclick="document.getElementById('simple-modal').style.display='none'" style="flex: 1; padding: 10px; background: #6b7280; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div id="filter-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; z-index: 2000; align-items: center; justify-content: center;">
+        <div style="background: var(--surface); border-radius: 16px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-bottom: 1px solid var(--border);">
+                <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin: 0;">Filter Expenses</h3>
+                <button style="background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s;" onclick="document.getElementById('filter-modal').style.display='none'">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <form id="filter-form-modal" onsubmit="event.preventDefault(); applyFilters();">
+                <!-- Category Filter -->
+                <div class="filter-section">
+                    <label class="filter-label">Category</label>
+                    <div class="filter-options" id="category-filters">
+                        <!-- Categories will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Sort By -->
+                <div class="filter-section">
+                    <label class="filter-label">Sort By</label>
+                    <div class="filter-options">
+                        <div class="filter-option">
+                            <input type="radio" id="sort-date" name="sort_by" value="date" checked>
+                            <label for="sort-date">Date (Newest First)</label>
+                        </div>
+                        <div class="filter-option">
+                            <input type="radio" id="sort-amount-high" name="sort_by" value="amount_high">
+                            <label for="sort-amount-high">Amount (High to Low)</label>
+                        </div>
+                        <div class="filter-option">
+                            <input type="radio" id="sort-amount-low" name="sort_by" value="amount_low">
+                            <label for="sort-amount-low">Amount (Low to High)</label>
+                        </div>
+                        <div class="filter-option">
+                            <input type="radio" id="sort-title" name="sort_by" value="title">
+                            <label for="sort-title">Title (A-Z)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Date Range -->
+                <div class="filter-section">
+                    <label class="filter-label">Date Range</label>
+                    <div class="filter-options">
+                        <div class="filter-option">
+                            <input type="radio" id="date-all" name="date_range" value="all" checked>
+                            <label for="date-all">All Time</label>
+                        </div>
+                        <div class="filter-option">
+                            <input type="radio" id="date-30" name="date_range" value="30">
+                            <label for="date-30">Last 30 Days</label>
+                        </div>
+                        <div class="filter-option">
+                            <input type="radio" id="date-7" name="date_range" value="7">
+                            <label for="date-7">Last 7 Days</label>
+                        </div>
+                        <div class="filter-option">
+                            <input type="radio" id="date-custom" name="date_range" value="custom">
+                            <label for="date-custom">Custom Range</label>
+                        </div>
+                    </div>
+                    
+                    <div class="date-range" id="custom-date-range" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label" for="date-from">From Date</label>
+                            <input type="date" id="date-from" name="date_from" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="date-to">To Date</label>
+                            <input type="date" id="date-to" name="date_to" class="form-input">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Amount Range -->
+                <div class="filter-section">
+                    <label class="filter-label">Amount Range (₹)</label>
+                    <div class="date-range">
+                        <div class="form-group">
+                            <label class="form-label" for="amount-min">Min Amount</label>
+                            <input type="number" id="amount-min" name="amount_min" class="form-input" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="amount-max">Max Amount</label>
+                            <input type="number" id="amount-max" name="amount_max" class="form-input" step="0.01" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; justify-content: flex-end; padding: 1.5rem; border-top: 1px solid var(--border);">
+                    <button type="button" class="btn btn-secondary" onclick="clearFilters()">Clear All</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('filter-modal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Initialize Lucide icons
         lucide.createIcons();
@@ -896,6 +1329,140 @@
                 alert('Delete functionality coming soon!');
             }
         }
+
+        // Filter Modal Functions
+        function openFilterModal() {
+            console.log('Opening filter modal...');
+            const modal = document.getElementById('filter-modal');
+            console.log('Modal element:', modal);
+            modal.style.display = 'flex';
+            console.log('Modal display set to flex');
+            populateCategoryFilters();
+        }
+
+        function closeFilterModal() {
+            const modal = document.getElementById('filter-modal');
+            modal.style.display = 'none';
+        }
+
+        function populateCategoryFilters() {
+            const categoryFilters = document.getElementById('category-filters');
+            categoryFilters.innerHTML = '';
+            
+            // Add "All Categories" option
+            const allOption = document.createElement('div');
+            allOption.className = 'filter-option';
+            allOption.innerHTML = `
+                <input type="checkbox" id="cat-all" name="categories" value="all" checked>
+                <label for="cat-all">All Categories</label>
+            `;
+            categoryFilters.appendChild(allOption);
+            
+            // Add categories from the page
+            const categorySelect = document.querySelector('select[name="category"]');
+            if (categorySelect) {
+                const options = categorySelect.querySelectorAll('option[value]');
+                options.forEach(option => {
+                    if (option.value) {
+                        const optionDiv = document.createElement('div');
+                        optionDiv.className = 'filter-option';
+                        optionDiv.innerHTML = `
+                            <input type="checkbox" id="cat-${option.value}" name="categories" value="${option.value}">
+                            <label for="cat-${option.value}">${option.textContent}</label>
+                        `;
+                        categoryFilters.appendChild(optionDiv);
+                    }
+                });
+            }
+        }
+
+        function applyFilters() {
+            const form = document.getElementById('filter-form-modal');
+            const formData = new FormData(form);
+            
+            // Build query parameters
+            const params = new URLSearchParams();
+            
+            // Handle categories
+            const selectedCategories = [];
+            const categoryInputs = form.querySelectorAll('input[name="categories"]:checked');
+            categoryInputs.forEach(input => {
+                if (input.value !== 'all') {
+                    selectedCategories.push(input.value);
+                }
+            });
+            
+            if (selectedCategories.length > 0) {
+                params.append('category', selectedCategories.join(','));
+            }
+            
+            // Handle sort by
+            const sortBy = formData.get('sort_by');
+            if (sortBy) {
+                let sortParam = '-date'; // default
+                switch(sortBy) {
+                    case 'date': sortParam = '-date'; break;
+                    case 'amount_high': sortParam = '-amount'; break;
+                    case 'amount_low': sortParam = 'amount'; break;
+                    case 'title': sortParam = 'title'; break;
+                }
+                params.append('ordering', sortParam);
+            }
+            
+            // Handle date range
+            const dateRange = formData.get('date_range');
+            if (dateRange && dateRange !== 'all') {
+                if (dateRange === '7' || dateRange === '30') {
+                    const daysAgo = new Date();
+                    daysAgo.setDate(daysAgo.getDate() - parseInt(dateRange));
+                    params.append('date__gte', daysAgo.toISOString().split('T')[0]);
+                } else if (dateRange === 'custom') {
+                    const dateFrom = formData.get('date_from');
+                    const dateTo = formData.get('date_to');
+                    if (dateFrom) params.append('date__gte', dateFrom);
+                    if (dateTo) params.append('date__lte', dateTo);
+                }
+            }
+            
+            // Handle amount range
+            const amountMin = formData.get('amount_min');
+            const amountMax = formData.get('amount_max');
+            if (amountMin) params.append('amount__gte', amountMin);
+            if (amountMax) params.append('amount__lte', amountMax);
+            
+            // Redirect with filters
+            window.location.href = `${window.location.pathname}?${params.toString()}`;
+        }
+
+        function clearFilters() {
+            // Reset form
+            const form = document.getElementById('filter-form-modal');
+            form.reset();
+            
+            // Reset "All Categories" checkbox
+            const allCategoriesCheckbox = document.getElementById('cat-all');
+            if (allCategoriesCheckbox) {
+                allCategoriesCheckbox.checked = true;
+            }
+            
+            // Uncheck all individual category checkboxes
+            const categoryCheckboxes = form.querySelectorAll('input[name="categories"]:not([value="all"])');
+            categoryCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+
+        // Custom date range toggle
+        document.querySelectorAll('input[name="date_range"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const customRange = document.getElementById('custom-date-range');
+                if (e.target.value === 'custom') {
+                    customRange.style.display = 'grid';
+                } else {
+                    customRange.style.display = 'none';
+                }
+            });
+        });
 
         // Toggle filter visibility
         function toggleFilters() {

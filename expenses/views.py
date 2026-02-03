@@ -39,10 +39,15 @@ def expense_history(request):
             Q(category__name__icontains=search_query)
         )
     
-    # Category filter
+    # Category filter - support multiple categories
     category_filter = request.GET.get('category', '')
     if category_filter:
-        expenses = expenses.filter(category_id=category_filter)
+        # Check if multiple categories are passed (comma-separated)
+        if ',' in category_filter:
+            category_ids = category_filter.split(',')
+            expenses = expenses.filter(category_id__in=category_ids)
+        else:
+            expenses = expenses.filter(category_id=category_filter)
     
     # Expense type filter
     expense_type_filter = request.GET.get('expense_type', '')
@@ -75,13 +80,16 @@ def expense_history(request):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
     
-    # Get all categories for filter dropdown
-    categories = Category.objects.all()
+    # Get all categories for the filter dropdown
+    categories = Category.objects.all().order_by('name')
     
-    # Build filter parameters for pagination links
-    filter_params = request.GET.copy()
-    if 'page' in filter_params:
-        del filter_params['page']
+    # Get current filter values for form pre-selection
+    current_sort = request.GET.get('sort', '-date')
+    current_categories = request.GET.get('category', '').split(',') if request.GET.get('category') else []
+    current_amount_min = request.GET.get('amount_min', '')
+    current_amount_max = request.GET.get('amount_max', '')
+    current_date_from = request.GET.get('date_from', '')
+    current_date_to = request.GET.get('date_to', '')
     
     context = {
         'user': request.user,
@@ -89,16 +97,12 @@ def expense_history(request):
         'search_query': search_query,
         'total_expenses': paginator.count,
         'categories': categories,
-        'filter_params': filter_params.urlencode(),
-        'current_filters': {
-            'category': category_filter,
-            'expense_type': expense_type_filter,
-            'date_from': date_from,
-            'date_to': date_to,
-            'amount_min': amount_min,
-            'amount_max': amount_max,
-            'sort': sort_by,
-        }
+        'current_sort': current_sort,
+        'current_categories': current_categories,
+        'current_amount_min': current_amount_min,
+        'current_amount_max': current_amount_max,
+        'current_date_from': current_date_from,
+        'current_date_to': current_date_to,
     }
     
     return render(request, 'expenses/history.html', context)
@@ -157,6 +161,13 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def chart_data(self, request):
         """Get last 7 days spending data for chart"""
+        # Debug: Check if user is authenticated
+        if not request.user.is_authenticated:
+            return Response(
+                {'error': 'User not authenticated'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
         from datetime import date, timedelta
         from django.db.models import Sum
         from collections import defaultdict

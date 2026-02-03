@@ -919,10 +919,6 @@
                     <div class="section-header">
                         <h3 class="section-title">Recent Expenses</h3>
                         <div class="section-actions">
-                            <button class="btn btn-secondary" onclick="openFilterModal()">
-                                <i data-lucide="filter"></i>
-                                Filter
-                            </button>
                             <a href="{% url 'expense_history' %}" class="btn btn-secondary">
                                 <i data-lucide="arrow-right"></i>
                                 View All
@@ -1377,6 +1373,7 @@
             try {
                 const response = await fetch(`${API_BASE}/expenses/recent/`, {
                     headers: {
+                        'Content-Type': 'application/json',
                         'X-CSRFToken': getCookie('csrftoken'),
                     },
                     credentials: 'same-origin'
@@ -1643,7 +1640,7 @@
             console.log('Initializing spending chart...');
             
             try {
-                const url = `${API_BASE}/expenses/chart-data/`;
+                const url = `${API_BASE}/expenses/chart_data/`;
                 console.log('Fetching chart data from:', url);
                 
                 const response = await fetch(url, {
@@ -1661,6 +1658,17 @@
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Error response:', errorText);
+                    
+                    // Handle authentication errors
+                    if (response.status === 401 || response.status === 403) {
+                        console.error('Authentication error - user may need to log in');
+                        // Redirect to login if not authenticated
+                        if (window.location.pathname !== '/login/') {
+                            window.location.href = '/login/';
+                        }
+                        return;
+                    }
+                    
                     throw new Error(`HTTP error! status: ${response.status}, text: ${errorText}`);
                 }
                 
@@ -1765,12 +1773,45 @@
             // Initialize Lucide icons first
             lucide.createIcons();
             
-            // Then load data
-            fetchCategories();
-            fetchExpenses();
-            fetchStats();
-            initSpendingChart();
+            // Check if user is authenticated by checking if we can access a protected endpoint
+            checkAuthenticationAndLoad();
         });
+
+        async function checkAuthenticationAndLoad() {
+            try {
+                // Test authentication with a simple request
+                const response = await fetch(`${API_BASE}/expenses/`, {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                    }
+                });
+                
+                if (response.status === 401 || response.status === 403) {
+                    console.log('User not authenticated, redirecting to login...');
+                    window.location.href = '/login/';
+                    return;
+                }
+                
+                // User is authenticated, load data
+                console.log('User authenticated, loading data...');
+                await Promise.all([
+                    fetchCategories(),
+                    fetchExpenses(),
+                    fetchStats()
+                ]);
+                initSpendingChart();
+                
+            } catch (error) {
+                console.error('Error checking authentication:', error);
+                // If there's an error, try to load data anyway
+                fetchCategories();
+                fetchExpenses();
+                fetchStats();
+                initSpendingChart();
+            }
+        }
     </script>
 </body>
 </html>
